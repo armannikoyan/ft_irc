@@ -3,7 +3,6 @@
 
 #include <string>
 #include <vector>
-#include <map>
 #include "Client.hpp"
 
 class Channel
@@ -48,7 +47,18 @@ public:
     bool isFull() const;
     
     std::vector<Client*> getClients() const;
-    void broadcast(const std::string& message, Client* exclude);
+    void broadcast(const std::string& message, Client* exclude = NULL);
+    
+    bool hasKey() const;
+    bool hasUserLimit() const;
+    void removeKey();
+    void removeUserLimit();
+    bool hasClient(Client* client) const;
+    size_t getUserCount() const;
+    bool isEmpty() const;
+    void addInvite(Client* client);
+    std::string getModes() const;
+    std::string getNamesList() const;
 };
 
 #endif

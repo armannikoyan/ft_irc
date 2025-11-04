@@ -1,0 +1,11 @@
+At "join, pong, msg and user" commit 17:50 4/11
+
+Hi guys
+A little problem - we do need to find any irc client that sends messages one by one and give you to configurate eeverything bby yourself
+For example. irrsi works this way:
+1. Take your. work stations config.
+2. Writes user, nick, and etc. instead of you
+3. When trying. to connect it will send cap and. then immediately pass, user, nick and our irc server muught not handle this
+as comminads are not. properly written
+
+Goal - please. find irc client that gives you cinfigurate everything and send. messages to connect by hand (nc is good buut. i need web based)
