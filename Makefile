@@ -28,7 +28,9 @@ SRCS = $(SRCS_DIR)/main.cpp \
        $(CMDS_DIR)/mode.cpp \
        $(CMDS_DIR)/quit.cpp \
        $(CMDS_DIR)/ping.cpp \
-       $(CMDS_DIR)/utils.cpp
+       $(CMDS_DIR)/utils.cpp \
+       $(CMDS_DIR)/pong.cpp \
+       $(CMDS_DIR)/notice.cpp
 
 # Bonus source files
 BONUS_SRCS = $(SRCS_DIR)/Server.cpp \
