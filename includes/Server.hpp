@@ -27,31 +27,20 @@ public:
     void run();
     void stop();
     
+    Client* getClientByNick(const std::string& nickname);
+    Channel* getChannel(const std::string& name);
+    Channel* createChannel(const std::string& name, Client* creator);
+    void removeChannel(const std::string& name);
+    bool isNicknameTaken(const std::string& nickname);
+    std::string getPassword() const;
+    void sendToChannel(const std::string& channelName, const std::string& message, Client* exclude);
+
 private:
     void setupSocket();
     void acceptNewClient();
     void handleClient(int fd);
     void removeClient(int fd);
-    
     void processMessage(Client* client, const std::string& message);
-    void sendToClient(int fd, const std::string& message);
-    
-    Client* getClientByNick(const std::string& nickname);
-    Channel* getChannel(const std::string& name);
-    Channel* createChannel(const std::string& name);
-    void deleteChannel(const std::string& name);
-    
-    void handlePass(Client* client, Message& msg);
-    void handleNick(Client* client, Message& msg);
-    void handleUser(Client* client, Message& msg);
-    void handleJoin(Client* client, Message& msg);
-    void handlePrivmsg(Client* client, Message& msg);
-    void handleKick(Client* client, Message& msg);
-    void handleInvite(Client* client, Message& msg);
-    void handleTopic(Client* client, Message& msg);
-    void handleMode(Client* client, Message& msg);
-    void handleQuit(Client* client, Message& msg);
-    void handlePing(Client* client, Message& msg);
 };
 
 #endif
