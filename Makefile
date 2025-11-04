@@ -3,14 +3,12 @@ BONUS_NAME = ircbot
 CC = c++
 CFLAGS = -Wall -Wextra -Werror -std=c++98
 
-# Directories
 SRCS_DIR = srcs
 OBJS_DIR = objs
 INCLUDES_DIR = includes
 CMDS_DIR = $(SRCS_DIR)/commands
 BOT_DIR = bot
 
-# Source files
 SRCS = $(SRCS_DIR)/main.cpp \
        $(SRCS_DIR)/Server.cpp \
        $(SRCS_DIR)/Client.cpp \
@@ -33,7 +31,6 @@ SRCS = $(SRCS_DIR)/main.cpp \
        $(CMDS_DIR)/cap.cpp \
        $(CMDS_DIR)/notice.cpp
 
-# Bonus source files
 BONUS_SRCS = $(SRCS_DIR)/Server.cpp \
              $(SRCS_DIR)/Client.cpp \
              $(SRCS_DIR)/Channel.cpp \
@@ -63,11 +60,15 @@ all: $(NAME)
 
 $(NAME): $(OBJS)
 	$(CC) $(CFLAGS) $(OBJS) -o $(NAME)
+       ##temopary - delete line below before finishing
+	@rm -f $(OBJS)
 
 bonus: $(BONUS_NAME)
 
 $(BONUS_NAME): $(BONUS_OBJS)
 	$(CC) $(CFLAGS) $(BONUS_OBJS) -o $(BONUS_NAME)
+       ##temopary - delete line below before finishing
+	@rm -f $(BONUS_OBJS)
 
 %.o: %.cpp
 	$(CC) $(CFLAGS) -I$(INCLUDES_DIR) -c $< -o $@

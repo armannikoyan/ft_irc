@@ -1,11 +1,36 @@
 At "join, pong, msg and user" commit 17:50 4/11
 
 Hi guys
-A little problem - we do need to find any irc client that sends messages one by one and give you to configurate eeverything bby yourself
-For example. irrsi works this way:
-1. Take your. work stations config.
+A little problem - we do need to find any irc client that sends messages one by one and give you to configure everything by yourself
+For example irrsi works this way:
+1. Take your work stations config.
 2. Writes user, nick, and etc. instead of you
-3. When trying. to connect it will send cap and. then immediately pass, user, nick and our irc server muught not handle this
-as comminads are not. properly written
+3. When trying to connect it will send cap and then immediately pass, user, nick and our irc server muught not handle this
+as comminads are not properly written
 
-Goal - please. find irc client that gives you cinfigurate everything and send. messages to connect by hand (nc is good buut. i need web based)
+Goal - please find irc client that gives you cinfigurate everything and send messages to connect by hand (nc is good but i need web based)
+
+
+At "finished it kinda..." commit 04:30 5/11
+
+Kinda finished it...kinda works...
+Was able to test multiple users on localhost
+type ./ircserv 6667 mypassword 
+Then on terminal (other terminal)
+Enter
+./ircserv 6667 mypassword
+and this type of commands
+
+PASS mypassword
+NICK testnick
+USER testuser 0 * :First User
+JOIN #test
+PRIVMSG #test :Hello from user 1!
+
+Should work
+At this moment it should accept \r, \n and \r\n however tested only with \n
+Still dont work. with messages combined
+PASS mypassword NICK testnick USER testuser 0 * :First User JOIN #test PRIVMSG #test :Hello from user 1! - won't work
+Also didnt checked. channel operators. - it is 4 am i am not sorry - anyway lot of QA ahead
+Please make separate QA.txt file and puut all testing there -  that will definetely help
+See ya when see. ya
