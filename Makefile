@@ -4,7 +4,7 @@ CXXFLAGS    = -Iincludes -Wall -Wextra -Werror -std=c++98
 SRCDIR      = sources
 OBJDIR      = objects
 
-SRC_FILES   = main.cpp Server.cpp Client.cpp
+SRC_FILES   = main.cpp Server.cpp Client.cpp Channel.cpp
 
 SRCS        = $(addprefix $(SRCDIR)/, $(SRC_FILES))
 OBJS        = $(addprefix $(OBJDIR)/, $(SRC_FILES:.cpp=.o))

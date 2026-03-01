@@ -1,38 +1,10 @@
-#include <cerrno>
-#include <stdexcept>
-#include <unistd.h>
-
 #include "Client.hpp"
 
-Client::Client() :
-    _fd(-1), _ipAddress(""), _readBuffer(""), _sendBuffer(""), _nickname(""), _username(""), _realname(""),
-    _hasPassword(false), _isRegistered(false) {};
-
 Client::Client(const int fd, const std::string &ipAddress) :
-    _fd(fd), _ipAddress(ipAddress), _readBuffer(""), _sendBuffer(""), _nickname(""), _username(""), _realname(""),
-    _hasPassword(false), _isRegistered(false) {};
-
-Client::Client(const Client &other) { *this = other; }
-
-Client &Client::operator=(const Client &other) {
-  if (this == &other)
-    return *this;
-
-  if (close(_fd) == -1 && errno != EBADF)
-    throw std::runtime_error("Error: close failed");
-
-  _fd = other._fd;
-  _ipAddress = other._ipAddress;
-  _readBuffer = other._readBuffer;
-  _sendBuffer = other._sendBuffer;
-  _nickname = other._nickname;
-  _username = other._username;
-  _realname = other._realname;
-  _hasPassword = other._hasPassword;
-  _isRegistered = other._isRegistered;
-
-  return *this;
-}
+    _fd(fd), _ipAddress(ipAddress), _hasPassword(false), _isRegistered(false), _pingSent(false),
+    _isDisconnecting(false) {
+  _lastActivityTime = std::time(NULL);
+};
 
 Client::~Client() {}
 
@@ -56,6 +28,8 @@ bool Client::hasPassword() const { return _hasPassword; }
 
 bool Client::isRegistered() const { return _isRegistered; }
 
+bool Client::isDisconnecting() const { return _isDisconnecting; }
+
 void Client::setNickname(const std::string &nickname) { _nickname = nickname; }
 
 void Client::setUsername(const std::string &username) { _username = username; }
@@ -70,8 +44,19 @@ void Client::setHasPassword(const bool hasPassword) { _hasPassword = hasPassword
 
 void Client::setRegistered(const bool registered) { _isRegistered = registered; }
 
+void Client::setDisconnecting(const bool disconnecting) { _isDisconnecting = disconnecting; }
+
 void Client::appendSendBuffer(const std::string &data) { _sendBuffer += data; }
 void Client::appendReadBuffer(const std::string &data) { _readBuffer += data; }
+
+bool Client::isBufferViolatingRFC() const {
+  const size_t pos = _readBuffer.find('\n');
+
+  if (pos == std::string::npos)
+    return _readBuffer.length() > 512;
+
+  return pos >= 512;
+}
 
 bool Client::hasCompleteCommand() const { return _readBuffer.find('\n') != std::string::npos; }
 
@@ -80,7 +65,7 @@ std::string Client::getCompleteCommand() {
   if (pos == std::string::npos)
     return "";
 
-  std::string command = _readBuffer.substr(0, pos + 1);
+  const std::string command = _readBuffer.substr(0, pos + 1);
   _readBuffer.erase(0, pos + 1);
 
   const size_t end = command.find_last_not_of("\r\n");
@@ -88,3 +73,11 @@ std::string Client::getCompleteCommand() {
 }
 
 void Client::clearSentData(const size_t length) { _sendBuffer.erase(0, length); }
+
+time_t Client::getLastActivityTime() const { return _lastActivityTime; }
+
+void Client::updateActivityTime() { _lastActivityTime = std::time(NULL); }
+
+bool Client::isPingSent() const { return _pingSent; }
+
+void Client::setPingSent(const bool sent) { _pingSent = sent; }

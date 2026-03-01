@@ -2,6 +2,7 @@
 #define CLIENT_HPP
 
 #include <string>
+#include <list>
 
 class Client {
   private:
@@ -19,6 +20,10 @@ class Client {
 
   bool _hasPassword;
   bool _isRegistered;
+
+  time_t _lastActivityTime;
+  bool _pingSent;
+  bool _isDisconnecting;
 
   Client();
   Client(const Client &);
@@ -38,6 +43,7 @@ class Client {
   const std::string &getRealname() const;
   bool hasPassword() const;
   bool isRegistered() const;
+  bool isDisconnecting() const;
 
   void setNickname(const std::string &);
   void setUsername(const std::string &);
@@ -46,15 +52,21 @@ class Client {
   void setRealname(const std::string &);
   void setHasPassword(bool);
   void setRegistered(bool);
-
+  void setDisconnecting(bool);
 
   void appendSendBuffer(const std::string &);
   void appendReadBuffer(const std::string &);
 
+  bool isBufferViolatingRFC() const;
   bool hasCompleteCommand() const;
   std::string getCompleteCommand();
 
   void clearSentData(size_t length);
+
+  time_t getLastActivityTime() const;
+  void updateActivityTime();
+  bool isPingSent() const;
+  void setPingSent(bool);
 };
 
 #endif

@@ -1,4 +1,3 @@
-#include <cstdlib>
 #include <iostream>
 
 #include "Server.hpp"
@@ -12,8 +11,8 @@ int main(const int argc, const char **argv) {
 
   try {
     char *endptr;
-    const size_t port = std::strtoll(argv[1], &endptr, 10);
-    if (endptr == argv[1] || port < MIN_PORT || port > MAX_PORT)
+    const long port = std::strtol(argv[1], &endptr, 10);
+    if (endptr == argv[1] || *endptr != '\0' || port < MIN_PORT || port > MAX_PORT)
       throw std::runtime_error("Invalid port number: Port must be from 1024 to 65535");
 
     const std::string password = std::string(argv[2]);
