@@ -10,9 +10,9 @@
 #define MIN_PORT 1024
 #define MAX_PORT SHRT_MAX
 
-// #ifndef MSG_NOSIGNAL
-// #define MSG_NOSIGNAL 0
-// #endif
+#ifndef MSG_NOSIGNAL
+#define MSG_NOSIGNAL 0
+#endif
 
 #define PING_TIMEOUT 60
 #define DEAD_TIMEOUT 120
