@@ -99,4 +99,10 @@
 #define ERR_BADCHANNELKEY(nickname, channel)                                                                           \
   (":" + SERV_NAME + " 475 " + nickname + " " + channel + " :Cannot join channel (+k)\r\n")
 
+#define ERR_UMODEUNKNOWNFLAG(nickname) (":" + SERV_NAME + " 501 " + nickname + " :Unknown MODE flag\r\n")
+
+#define ERR_USERSDONTMATCH(nickname) (":" + SERV_NAME + " 502 " + nickname + " :Cannot change mode for other users\r\n")
+
+#define RPL_UMODEIS(nickname, modes) (":" + SERV_NAME + " 221 " + nickname + " " + modes + "\r\n")
+
 #endif

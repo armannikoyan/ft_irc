@@ -6,16 +6,8 @@ Channel::Channel(const std::string &name) :
     _name(name), _isInviteOnly(false), _isTopicRestricted(true), _clientLimit(0) {}
 
 Channel::~Channel() {
-  for (std::map<int, Client *>::const_iterator it = _clients.begin(); it != _clients.end(); ++it) {
-    delete it->second;
-  }
   _clients.clear();
-
-  for (std::map<int, Client *>::const_iterator it = _operators.begin(); it != _operators.end(); ++it) {
-    delete it->second;
-  }
   _operators.clear();
-
   _joinOrder.clear();
   _invitedUsers.clear();
 }

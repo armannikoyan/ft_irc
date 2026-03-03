@@ -194,6 +194,7 @@ void Server::_handlePass(const int fd, const std::vector<std::string> &args) {
   } else {
     const std::string nickname = _clients[fd]->getNickname();
     _sendResponse(fd, ERR_PASSWDMISMATCH((nickname.empty() ? "*" : nickname)));
+    client->setDisconnecting(true);
   }
 }
 
@@ -253,7 +254,6 @@ void Server::_handleJoin(const int fd, const std::vector<std::string> &args) {
                                   client->getIpAddress() + " PART " + channelName + " :Left all channels\r\n";
 
       _broadcastToChannel(channelName, partMsg);
-
       _removeClientFromChannel(fd, channelName);
     }
 
@@ -262,11 +262,11 @@ void Server::_handleJoin(const int fd, const std::vector<std::string> &args) {
   }
 
   const std::vector<std::string> channelsToJoin = _split(args[1], ',');
-
-  // TODO: handling of MODE +k
+  std::vector<std::string> keys = args.size() > 2 ? _split(args[2], ',') : std::vector<std::string>();
 
   for (size_t i = 0; i < channelsToJoin.size(); ++i) {
     const std::string &channelName = channelsToJoin[i];
+    const std::string key = (i < keys.size()) ? keys[i] : "";
 
     if (channelName.empty())
       continue;
@@ -287,7 +287,25 @@ void Server::_handleJoin(const int fd, const std::vector<std::string> &args) {
     if (channel->hasClient(fd))
       continue;
 
+    if (channel->getClientLimit() > 0 && channel->getClients().size() >= channel->getClientLimit()) {
+      _sendResponse(fd, ERR_CHANNELISFULL(client->getNickname(), channelName));
+      continue;
+    }
+
+    if (!channel->getPassword().empty() && channel->getPassword() != key) {
+      _sendResponse(fd, ERR_BADCHANNELKEY(client->getNickname(), channelName));
+      continue;
+    }
+
+    if (channel->isInviteOnly() && !channel->isInvited(client->getNickname())) {
+      _sendResponse(fd, ERR_INVITEONLYCHAN(client->getNickname(), channelName));
+      continue;
+    }
+
     channel->addClient(client);
+
+    if (channel->isInvited(client->getNickname()))
+      channel->removeInvite(client->getNickname());
 
     std::string joinMsg = ":" + client->getNickname() + "!~" + client->getUsername() + "@" + client->getIpAddress() +
                           " JOIN :" + channelName + "\r\n";
@@ -336,7 +354,7 @@ void Server::_handlePrivMsg(const int fd, const std::vector<std::string> &args) 
     _sendResponse(fd, ERR_NORECIPIENT(client->getNickname(), "PRIVMSG"));
     return;
   }
-  if (args.size() > 3) {
+  if (args.size() < 3) {
     _sendResponse(fd, ERR_NOTEXTTOSEND(client->getNickname()));
     return;
   }
@@ -355,13 +373,13 @@ void Server::_handlePrivMsg(const int fd, const std::vector<std::string> &args) 
     if (target[0] == '#' || target[0] == '&') {
       if (_channels.find(target) == _channels.end()) {
         _sendResponse(fd, ERR_NOSUCHNICK(client->getNickname(), target));
-        return;
+        continue;
       }
 
       const Channel *channel = _channels[target];
       if (!channel->hasClient(fd)) {
         _sendResponse(fd, ERR_CANNOTSENDTOCHAN(client->getNickname(), target));
-        return;
+        continue;
       }
 
       _broadcastToChannel(target, fullMsg, fd);
@@ -531,8 +549,7 @@ void Server::_handleTopic(const int fd, const std::vector<std::string> &args) {
     return;
   }
 
-  // TODO: rewrite after MODE
-  if (!channel->isOperator(fd)) {
+  if (channel->isTopicRestricted() && !channel->isOperator(fd)) {
     _sendResponse(fd, ERR_CHANOPRIVSNEEDED(client->getNickname(), channelName));
     return;
   }
@@ -577,7 +594,7 @@ void Server::_handleInvite(const int fd, const std::vector<std::string> &args) {
     return;
   }
 
-  const Channel *channel = _channels[channelName];
+  Channel *channel = _channels[channelName];
 
   if (!channel->hasClient(fd)) {
     _sendResponse(fd, ERR_NOTONCHANNEL(client->getNickname(), channelName));
@@ -600,7 +617,7 @@ void Server::_handleInvite(const int fd, const std::vector<std::string> &args) {
                                 client->getIpAddress() + " INVITE " + targetNick + " :" + channelName + "\r\n";
   _sendResponse(targetClient->getFd(), inviteMsg);
 
-  // TODO: rewrite after MODE +i
+  channel->addInvite(targetNick);
 }
 
 void Server::_handlePart(const int fd, const std::vector<std::string> &args) {
@@ -663,8 +680,20 @@ void Server::_handleMode(const int fd, const std::vector<std::string> &args) {
   }
 
   const std::string &target = args[1];
-  if (target[0] != '#' && target[0] != '&')
+  if (target[0] != '#' && target[0] != '&') {
+    if (target != client->getNickname()) {
+      _sendResponse(fd, ERR_USERSDONTMATCH(client->getNickname()));
+      return;
+    }
+
+    if (args.size() == 2) {
+      _sendResponse(fd, RPL_UMODEIS(client->getNickname(), "+"));
+      return;
+    }
+
+    _sendResponse(fd, ERR_UMODEUNKNOWNFLAG(client->getNickname()));
     return;
+  }
 
   if (_channels.find(target) == _channels.end()) {
     _sendResponse(fd, ERR_NOSUCHCHANNEL(client->getNickname(), target));
@@ -675,7 +704,7 @@ void Server::_handleMode(const int fd, const std::vector<std::string> &args) {
 
   if (args.size() == 2) {
     std::string currentModes = "+";
-    std::string modeParams = "";
+    std::string modeParams;
 
     if (channel->isInviteOnly())
       currentModes += "i";
@@ -749,12 +778,13 @@ void Server::_handleMode(const int fd, const std::vector<std::string> &args) {
             } else
               _sendResponse(fd, ERR_KEYSET(client->getNickname(), target));
           } else {
-            if (channel->getPassword() == param) {
+            if (!channel->getPassword().empty()) {
               channel->setPassword("");
               modeChanged = true;
             }
           }
-        }
+        } else
+          _sendResponse(fd, ERR_NEEDMOREPARAMS(client->getNickname(), "MODE"));
         break;
 
       case 'l':
@@ -762,12 +792,17 @@ void Server::_handleMode(const int fd, const std::vector<std::string> &args) {
           if (paramIndex < args.size()) {
             param = args[paramIndex++];
             char *endptr;
-            const long limit = std::strtol(param.c_str(), &endptr, 10);
-            if (limit > 0 && endptr == '\0') {
-              channel->setClientLimit(static_cast<size_t>(limit));
+            const size_t limit = static_cast<size_t>(std::strtol(param.c_str(), &endptr, 10));
+            if (limit > 0 && *endptr == '\0') {
+              if (channel->getClientLimit() != limit) {
+                channel->setClientLimit(limit);
+                modeChanged = true;
+              }
+              channel->setClientLimit(limit);
               modeChanged = true;
             }
-          }
+          } else
+            _sendResponse(fd, ERR_NEEDMOREPARAMS(client->getNickname(), "MODE"));
         } else {
           if (channel->getClientLimit() != 0) {
             channel->setClientLimit(0);
@@ -783,11 +818,11 @@ void Server::_handleMode(const int fd, const std::vector<std::string> &args) {
 
           if (!targetClient) {
             _sendResponse(fd, ERR_NOSUCHNICK(client->getNickname(), param));
-            continue;
+            break;
           }
           if (!channel->hasClient(targetClient->getFd())) {
             _sendResponse(fd, ERR_USERNOTINCHANNEL(client->getNickname(), param, target));
-            continue;
+            break;
           }
 
           if (adding && !channel->isOperator(targetClient->getFd())) {
@@ -797,7 +832,8 @@ void Server::_handleMode(const int fd, const std::vector<std::string> &args) {
             channel->removeOperator(targetClient->getFd());
             modeChanged = true;
           }
-        }
+        } else
+          _sendResponse(fd, ERR_NEEDMOREPARAMS(client->getNickname(), "MODE"));
         break;
 
       default:
@@ -805,7 +841,6 @@ void Server::_handleMode(const int fd, const std::vector<std::string> &args) {
         break;
     }
 
-    // Если мод реально поменял состояние, добавляем его в строку ответа
     if (modeChanged) {
       const char currentSign = adding ? '+' : '-';
       if (lastSign != currentSign) {
@@ -813,18 +848,15 @@ void Server::_handleMode(const int fd, const std::vector<std::string> &args) {
         lastSign = currentSign;
       }
       outModes += c;
-      if (!param.empty()) {
+      if (!param.empty())
         outParams.push_back(param);
-      }
     }
   }
 
-  // Если моды действительно изменились, рассылаем всем на канале
   if (!outModes.empty()) {
     std::string paramsStr;
-    for (size_t i = 0; i < outParams.size(); ++i) {
+    for (size_t i = 0; i < outParams.size(); ++i)
       paramsStr += " " + outParams[i];
-    }
 
     const std::string modeMsg = ":" + client->getNickname() + "!~" + client->getUsername() + "@" +
                                 client->getIpAddress() + " MODE " + target + " " + outModes + paramsStr + "\r\n";
@@ -972,11 +1004,21 @@ void Server::_receiveData(const int fd) {
   const ssize_t bytesRead = recv(fd, buffer, sizeof(buffer), 0);
   if (bytesRead == -1 && errno != EAGAIN && errno != EWOULDBLOCK) {
     std::cerr << "Error reading from client FD: " << fd << std::endl;
+
+    std::vector<std::string> args;
+    args.push_back("QUIT");
+    args.push_back("Connection error");
+    _handleQuit(fd, args);
     _removeClient(fd);
     return;
   }
   if (bytesRead == 0) {
     std::cout << "Client FD " << fd << " disconnected." << std::endl;
+
+    std::vector<std::string> args;
+    args.push_back("QUIT");
+    args.push_back("Client exited");
+    _handleQuit(fd, args);
     _removeClient(fd);
     return;
   }
@@ -1077,6 +1119,16 @@ void Server::_processCommand(const int fd, const std::string &command) {
   size_t start = 0;
   size_t end = command.find(' ');
 
+  if (command[start] == ':') {
+    size_t space_pos = command.find_first_of(' ', start);
+    if (space_pos != std::string::npos) {
+      start = space_pos + 1;
+      end = command.find(' ', start);
+    } else {
+      return;
+    }
+  }
+
   while (end != std::string::npos) {
     args.push_back(command.substr(start, end - start));
     start = end + 1;
@@ -1139,11 +1191,15 @@ Client *Server::_getClientByNickname(const std::string &nickname) const {
     const std::string &clientNick = it->second->getNickname();
 
     if (clientNick.length() == nickname.length()) {
+      bool match = true;
       for (size_t i = 0; i < clientNick.length(); ++i) {
-        if (IrcCompare::toIrcLower(clientNick[i]) == IrcCompare::toIrcLower(nickname[i])) {
-          return (it->second);
+        if (IrcCompare::toIrcLower(clientNick[i]) != IrcCompare::toIrcLower(nickname[i])) {
+          match = false;
+          break;
         }
       }
+      if (match)
+        return (it->second);
     }
   }
   return NULL;
@@ -1171,7 +1227,7 @@ void Server::_checkTimeouts() {
     if (now - client->getLastActivityTime() > DEAD_TIMEOUT) {
       fdsToDisconnect.push_back(fd);
     } else if (now - client->getLastActivityTime() > PING_TIMEOUT && !client->isPingSent()) {
-      _sendResponse(fd, "PING :" + SERV_NAME + "\r\n");
+      _sendResponse(fd, "PING " + SERV_NAME + "\r\n");
       client->setPingSent(true);
       std::cout << "Sent PING to FD " << fd << " due to inactivity." << std::endl;
     }
@@ -1213,7 +1269,7 @@ void Server::_removeClientFromChannel(const int fd, const std::string &channelNa
     }
 
     if (!hasOperator) {
-      Client *newOp = clients.begin()->second;
+      Client *newOp = channel->getOldestClient();
       channel->addOperator(newOp);
 
       const std::string modeMsg = ":" + SERV_NAME + " MODE " + channelName + " +o " + newOp->getNickname() + "\r\n";
