@@ -1,9 +1,11 @@
+#include <ctime>
+
 #include "Client.hpp"
 
 Client::Client(const int fd, const std::string &ipAddress) :
     _fd(fd), _ipAddress(ipAddress), _hasPassword(false), _isRegistered(false), _pingSent(false),
     _isDisconnecting(false) {
-  _lastActivityTime = std::time(NULL);
+  _lastActivityTime = time(NULL);
 };
 
 Client::~Client() {}
@@ -76,7 +78,7 @@ void Client::clearSentData(const size_t length) { _sendBuffer.erase(0, length); 
 
 time_t Client::getLastActivityTime() const { return _lastActivityTime; }
 
-void Client::updateActivityTime() { _lastActivityTime = std::time(NULL); }
+void Client::updateActivityTime() { _lastActivityTime = time(NULL); }
 
 bool Client::isPingSent() const { return _pingSent; }
 

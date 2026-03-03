@@ -8,6 +8,8 @@
 #include <stdexcept>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <cstdlib>
+#include <ctime>
 
 #include "Server.hpp"
 #include "ircdefine.hpp"
@@ -1217,7 +1219,7 @@ void Server::_checkRegistration(Client *client) {
 }
 
 void Server::_checkTimeouts() {
-  const time_t now = std::time(NULL);
+  const time_t now = time(NULL);
 
   std::vector<int> fdsToDisconnect;
   for (std::map<int, Client *>::iterator it = _clients.begin(); it != _clients.end(); ++it) {
