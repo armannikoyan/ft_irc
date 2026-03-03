@@ -2,7 +2,8 @@
 
 #include "Channel.hpp"
 
-Channel::Channel(const std::string &name) : _name(name) {}
+Channel::Channel(const std::string &name) :
+    _name(name), _isInviteOnly(false), _isTopicRestricted(true), _clientLimit(0) {}
 
 Channel::~Channel() {
   for (std::map<int, Client *>::const_iterator it = _clients.begin(); it != _clients.end(); ++it) {
@@ -16,6 +17,7 @@ Channel::~Channel() {
   _operators.clear();
 
   _joinOrder.clear();
+  _invitedUsers.clear();
 }
 
 const std::string &Channel::getName() const { return _name; }
@@ -73,4 +75,33 @@ Client *Channel::getOldestClient() const {
   }
 
   return NULL;
+}
+
+bool Channel::isInviteOnly() const { return _isInviteOnly; }
+void Channel::setInviteOnly(const bool inviteOnly) { _isInviteOnly = inviteOnly; }
+
+bool Channel::isTopicRestricted() const { return _isTopicRestricted; }
+void Channel::setTopicRestricted(const bool topicRestricted) { _isTopicRestricted = topicRestricted; }
+
+const std::string &Channel::getPassword() const { return _password; }
+void Channel::setPassword(const std::string &password) { _password = password; }
+
+size_t Channel::getClientLimit() const { return _clientLimit; }
+void Channel::setClientLimit(const size_t limit) { _clientLimit = limit; }
+
+bool Channel::isInvited(const std::string &nickname) const {
+  return std::find(_invitedUsers.begin(), _invitedUsers.end(), nickname) != _invitedUsers.end();
+}
+
+void Channel::addInvite(const std::string &nickname) {
+  if (!isInvited(nickname)) {
+    _invitedUsers.push_back(nickname);
+  }
+}
+
+void Channel::removeInvite(const std::string &nickname) {
+  const std::vector<std::string>::iterator it = std::find(_invitedUsers.begin(), _invitedUsers.end(), nickname);
+  if (it != _invitedUsers.end()) {
+    _invitedUsers.erase(it);
+  }
 }

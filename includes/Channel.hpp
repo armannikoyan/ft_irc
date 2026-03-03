@@ -16,6 +16,11 @@ class Channel {
   std::map<int, Client *> _operators;
   std::list<int> _joinOrder;
 
+  bool _isInviteOnly;
+  bool _isTopicRestricted;
+  size_t _clientLimit;
+  std::vector<std::string> _invitedUsers;
+
   Channel();
   Channel(const Channel &);
   Channel &operator=(const Channel &);
@@ -40,6 +45,22 @@ class Channel {
 
   std::string getClientList() const;
   Client *getOldestClient() const;
+
+  bool isInviteOnly() const;
+  void setInviteOnly(bool);
+
+  bool isTopicRestricted() const;
+  void setTopicRestricted(bool);
+
+  const std::string &getPassword() const;
+  void setPassword(const std::string &);
+
+  size_t getClientLimit() const;
+  void setClientLimit(size_t);
+
+  bool isInvited(const std::string &) const;
+  void addInvite(const std::string &);
+  void removeInvite(const std::string &);
 };
 
 #endif

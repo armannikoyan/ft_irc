@@ -80,4 +80,23 @@
 
 #define ERR_NOORIGIN(nickname) (":" + SERV_NAME + " 409 " + nickname + " :No origin specified\r\n")
 
+#define RPL_CHANNELMODEIS(nickname, channel, mode, mode_params)                                                        \
+  (":" + SERV_NAME + " 324 " + nickname + " " + channel + " " + mode +                                                 \
+   (mode_params.empty() ? "" : " " + mode_params) + "\r\n")
+
+#define ERR_KEYSET(nickname, channel)                                                                                  \
+  (":" + SERV_NAME + " 467 " + nickname + " " + channel + " :Channel key already set\r\n")
+
+#define ERR_UNKNOWNMODE(nickname, modechar)                                                                            \
+  (":" + SERV_NAME + " 472 " + nickname + " " + modechar + " :is unknown mode char to me\r\n")
+
+#define ERR_CHANNELISFULL(nickname, channel)                                                                           \
+  (":" + SERV_NAME + " 471 " + nickname + " " + channel + " :Cannot join channel (+l)\r\n")
+
+#define ERR_INVITEONLYCHAN(nickname, channel)                                                                          \
+  (":" + SERV_NAME + " 473 " + nickname + " " + channel + " :Cannot join channel (+i)\r\n")
+
+#define ERR_BADCHANNELKEY(nickname, channel)                                                                           \
+  (":" + SERV_NAME + " 475 " + nickname + " " + channel + " :Cannot join channel (+k)\r\n")
+
 #endif

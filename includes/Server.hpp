@@ -54,6 +54,7 @@ class Server {
   void _handleTopic(int, const std::vector<std::string> &);
   void _handleInvite(int, const std::vector<std::string> &);
   void _handlePart(int, const std::vector<std::string> &);
+  void _handleMode(int, const std::vector<std::string> &);
 
   void _initServer();
   void _runServer();

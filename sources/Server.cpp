@@ -648,6 +648,190 @@ void Server::_handlePart(const int fd, const std::vector<std::string> &args) {
   }
 }
 
+void Server::_handleMode(const int fd, const std::vector<std::string> &args) {
+  const Client *client = _clients[fd];
+
+  if (!client->isRegistered()) {
+    const std::string nick = client->getNickname().empty() ? "*" : client->getNickname();
+    _sendResponse(fd, ERR_NOTREGISTERED(nick));
+    return;
+  }
+
+  if (args.size() < 2) {
+    _sendResponse(fd, ERR_NEEDMOREPARAMS(client->getNickname(), "MODE"));
+    return;
+  }
+
+  const std::string &target = args[1];
+  if (target[0] != '#' && target[0] != '&')
+    return;
+
+  if (_channels.find(target) == _channels.end()) {
+    _sendResponse(fd, ERR_NOSUCHCHANNEL(client->getNickname(), target));
+    return;
+  }
+
+  Channel *channel = _channels[target];
+
+  if (args.size() == 2) {
+    std::string currentModes = "+";
+    std::string modeParams = "";
+
+    if (channel->isInviteOnly())
+      currentModes += "i";
+    if (channel->isTopicRestricted())
+      currentModes += "t";
+    if (!channel->getPassword().empty()) {
+      currentModes += "k";
+      modeParams += " " + channel->getPassword();
+    }
+    if (channel->getClientLimit() > 0) {
+      currentModes += "l";
+      std::ostringstream oss;
+      oss << channel->getClientLimit();
+      modeParams += " " + oss.str();
+    }
+
+    if (currentModes == "+")
+      currentModes = "";
+
+    if (!modeParams.empty() && modeParams[0] == ' ')
+      modeParams.erase(0, 1);
+
+    _sendResponse(fd, RPL_CHANNELMODEIS(client->getNickname(), target, currentModes, modeParams));
+    return;
+  }
+
+  if (!channel->isOperator(fd)) {
+    _sendResponse(fd, ERR_CHANOPRIVSNEEDED(client->getNickname(), target));
+    return;
+  }
+
+  const std::string &modeString = args[2];
+  size_t paramIndex = 3;
+  bool adding = true;
+  std::string outModes;
+  std::vector<std::string> outParams;
+  char lastSign = '\0';
+
+  for (size_t i = 0; i < modeString.length(); ++i) {
+    const char c = modeString[i];
+    if (c == '+' || c == '-') {
+      adding = (c == '+');
+      continue;
+    }
+
+    bool modeChanged = false;
+    std::string param;
+
+    switch (c) {
+      case 'i':
+        if (channel->isInviteOnly() != adding) {
+          channel->setInviteOnly(adding);
+          modeChanged = true;
+        }
+        break;
+
+      case 't':
+        if (channel->isTopicRestricted() != adding) {
+          channel->setTopicRestricted(adding);
+          modeChanged = true;
+        }
+        break;
+
+      case 'k':
+        if (paramIndex < args.size()) {
+          param = args[paramIndex++];
+          if (adding) {
+            if (channel->getPassword().empty()) {
+              channel->setPassword(param);
+              modeChanged = true;
+            } else
+              _sendResponse(fd, ERR_KEYSET(client->getNickname(), target));
+          } else {
+            if (channel->getPassword() == param) {
+              channel->setPassword("");
+              modeChanged = true;
+            }
+          }
+        }
+        break;
+
+      case 'l':
+        if (adding) {
+          if (paramIndex < args.size()) {
+            param = args[paramIndex++];
+            char *endptr;
+            const long limit = std::strtol(param.c_str(), &endptr, 10);
+            if (limit > 0 && endptr == '\0') {
+              channel->setClientLimit(static_cast<size_t>(limit));
+              modeChanged = true;
+            }
+          }
+        } else {
+          if (channel->getClientLimit() != 0) {
+            channel->setClientLimit(0);
+            modeChanged = true;
+          }
+        }
+        break;
+
+      case 'o':
+        if (paramIndex < args.size()) {
+          param = args[paramIndex++];
+          Client *targetClient = _getClientByNickname(param);
+
+          if (!targetClient) {
+            _sendResponse(fd, ERR_NOSUCHNICK(client->getNickname(), param));
+            continue;
+          }
+          if (!channel->hasClient(targetClient->getFd())) {
+            _sendResponse(fd, ERR_USERNOTINCHANNEL(client->getNickname(), param, target));
+            continue;
+          }
+
+          if (adding && !channel->isOperator(targetClient->getFd())) {
+            channel->addOperator(targetClient);
+            modeChanged = true;
+          } else if (!adding && channel->isOperator(targetClient->getFd())) {
+            channel->removeOperator(targetClient->getFd());
+            modeChanged = true;
+          }
+        }
+        break;
+
+      default:
+        _sendResponse(fd, ERR_UNKNOWNMODE(client->getNickname(), c));
+        break;
+    }
+
+    // Если мод реально поменял состояние, добавляем его в строку ответа
+    if (modeChanged) {
+      const char currentSign = adding ? '+' : '-';
+      if (lastSign != currentSign) {
+        outModes += currentSign;
+        lastSign = currentSign;
+      }
+      outModes += c;
+      if (!param.empty()) {
+        outParams.push_back(param);
+      }
+    }
+  }
+
+  // Если моды действительно изменились, рассылаем всем на канале
+  if (!outModes.empty()) {
+    std::string paramsStr;
+    for (size_t i = 0; i < outParams.size(); ++i) {
+      paramsStr += " " + outParams[i];
+    }
+
+    const std::string modeMsg = ":" + client->getNickname() + "!~" + client->getUsername() + "@" +
+                                client->getIpAddress() + " MODE " + target + " " + outModes + paramsStr + "\r\n";
+    _broadcastToChannel(target, modeMsg);
+  }
+}
+
 void Server::_initServer() {
   _serverFd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
   if (_serverFd == -1)
@@ -882,6 +1066,7 @@ void Server::_initCommands() {
   _commands["TOPIC"] = &Server::_handleTopic;
   _commands["INVITE"] = &Server::_handleInvite;
   _commands["PART"] = &Server::_handlePart;
+  _commands["MODE"] = &Server::_handleMode;
 }
 
 void Server::_processCommand(const int fd, const std::string &command) {
