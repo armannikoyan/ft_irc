@@ -983,7 +983,7 @@ void Server::_acceptClient() {
   }
 
 #ifdef __APPLE__
-  int no_sigpipe = 1;
+  const int no_sigpipe = 1;
   if (setsockopt(clientFd, SOL_SOCKET, SO_NOSIGPIPE, &no_sigpipe, sizeof(no_sigpipe)) == -1) {
     std::cerr << "Error: setsockopt SO_NOSIGPIPE failed" << std::endl;
     close(clientFd);
