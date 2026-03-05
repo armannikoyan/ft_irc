@@ -10,6 +10,7 @@
 #include <stdexcept>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <csignal>
 
 #include "Server.hpp"
 #include "ircdefine.hpp"
