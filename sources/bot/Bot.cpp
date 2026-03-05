@@ -42,7 +42,8 @@ int main(int argc, char **argv) {
   sigemptyset(&sa.sa_mask);
   sa.sa_flags = 0;
   sa.sa_handler = handleSigint;
-  sigaction(SIGINT, &sa, nullptr);
+  sigaction(SIGINT, &sa, NULL);
+  sigaction(SIGQUIT, &sa, NULL);
 
   const std::string ip = argv[1];
   const int port = std::atoi(argv[2]);
