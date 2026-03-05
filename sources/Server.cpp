@@ -1,5 +1,7 @@
 #include <arpa/inet.h>
 #include <cerrno>
+#include <cstdlib>
+#include <ctime>
 #include <fcntl.h>
 #include <iostream>
 #include <netinet/in.h>
@@ -8,11 +10,11 @@
 #include <stdexcept>
 #include <sys/socket.h>
 #include <unistd.h>
-#include <cstdlib>
-#include <ctime>
 
 #include "Server.hpp"
 #include "ircdefine.hpp"
+
+extern volatile sig_atomic_t g_server_running;
 
 char IrcCompare::toIrcLower(const char c) {
   if (c >= 'A' && c <= 'Z')
@@ -912,11 +914,14 @@ void Server::_initServer() {
 }
 
 void Server::_runServer() {
-  while (true) {
+  while (g_server_running) {
     const int pollCount = poll(&_fds[0], _fds.size(), 5000);
     if (pollCount == -1) {
-      if (errno == EINTR)
+      if (errno == EINTR) {
+        if (!g_server_running)
+          break;
         continue;
+      }
       throw std::runtime_error("Error: poll failed");
     }
 
